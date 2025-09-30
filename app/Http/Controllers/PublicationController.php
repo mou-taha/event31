@@ -10,6 +10,7 @@ use App\Models\Virtual;
 use App\Models\Physical;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class PublicationController extends Controller
 {
@@ -27,13 +28,18 @@ class PublicationController extends Controller
         $searchTerm = $request->input('search');
         $selectedTypeId = $request->input('type_id');
         $selectedSubtypeId = $request->input('subtype_id');
-    
-        $items = $this->loadItems($selectedCity, $selectedDate, $selectedTypes, $selectedPrices, $sortBy, $searchTerm, $selectedTypeId, $selectedSubtypeId);
-    
+        //$page = $request->get('page', 1);
+       $items = $this->loadItems($request,$selectedCity, $selectedDate, $selectedTypes, $selectedPrices, $sortBy, $searchTerm, $selectedTypeId, $selectedSubtypeId);
+       if ($request->ajax()) {
+                // If it's an AJAX request, return only the new posts (e.g., as JSON)
+                 
+                return response()->json(view('partials.event', compact('items'))->render());
+                 
+            }
         return view('publications.index', compact('cities', 'types', 'menus', 'items', 'selectedCity', 'selectedDate', 'selectedTypes', 'selectedPrices', 'sortBy', 'searchTerm'));
     }
     
-protected function loadItems($selectedCity, $selectedDate, $selectedTypes, $selectedPrices, $sortBy, $searchTerm, $selectedTypeId, $selectedSubtypeId)
+protected function loadItems(Request $request,$selectedCity, $selectedDate, $selectedTypes, $selectedPrices, $sortBy, $searchTerm, $selectedTypeId, $selectedSubtypeId)
 {
     $items = collect();
     $today = Carbon::today(); // Get today's date
@@ -108,9 +114,10 @@ protected function loadItems($selectedCity, $selectedDate, $selectedTypes, $sele
         });
     }
 
-    $physicalEvents = $physicalEventsQuery->get();
-    $virtualEvents = $virtualEventsQuery->get();
-
+    $physicalEvents = $physicalEventsQuery->paginate(5);
+    $virtualEvents = $virtualEventsQuery->paginate(5);
+  
+    
     foreach ($physicalEvents as $physical) {
         if ($this->applyFilters($physical, $selectedCity, $selectedDate, $selectedPrices, $selectedTypes, 'physical')) {
             $items->push($this->transformItem($physical, 'physical'));
@@ -125,7 +132,23 @@ protected function loadItems($selectedCity, $selectedDate, $selectedTypes, $sele
 
     $items = $this->applySorting($items, $sortBy);
 
-    return $items->values()->all();
+    // return $items->values()->all();
+
+    // Paginate final merged collection manually
+    $page = request()->get('page',1);
+    $perPage = 10;
+    $total =  $physicalEvents->total() +  $virtualEvents->total();
+
+    $paginatedItems = new LengthAwarePaginator(
+        $items->forPage(1, $perPage),
+        $total,
+        $perPage,
+        $page,
+        ['path' => request()->url(), 'query' => request()->query()]
+    );
+
+    // Optional: if you're using Laravel API resources or JSON
+    return $paginatedItems;
 }
     
     protected function applyFilters($event, $selectedCity, $selectedDate, $selectedPrices, $selectedTypes, $type)

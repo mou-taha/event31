@@ -637,7 +637,7 @@
             <div id="pagination-links" style="display: none;">
                 {{ $items->links() }}
             </div>
-            <div id="loading-indicator" style="display: none;">Loading more posts...</div>
+            <div id="loading-indicator" style="display: none;">Loading more events...</div>
 
         </main>
         <footer class="bg-gray-50" aria-labelledby="footer-heading">

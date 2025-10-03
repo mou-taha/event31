@@ -114,8 +114,8 @@ protected function loadItems(Request $request,$selectedCity, $selectedDate, $sel
         });
     }
 
-    $physicalEvents = $physicalEventsQuery->paginate(5);
-    $virtualEvents = $virtualEventsQuery->paginate(5);
+    $physicalEvents = $physicalEventsQuery->orderBy('datestart', 'asc')->paginate(5);
+    $virtualEvents = $virtualEventsQuery->orderBy('datestart', 'asc')->paginate(5);
   
     
     foreach ($physicalEvents as $physical) {

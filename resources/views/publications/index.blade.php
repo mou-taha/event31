@@ -767,18 +767,42 @@
         $(document).ready(function() {
             var page = 1;
             var loading = false;
-
             $(window).scroll(function() {
                 if ($(window).scrollTop() + $(window).height() >= $(document).height() - 100 && !loading) {
                     loading = true;
                     page++;
+                    let url = '{{ route('index') }}?page=' + page;
                     $('#loading-indicator').show();
+                    const form = document.getElementById('searchForm');
+                    const formData = new FormData(form);
+
+                    // Get a specific field's value
+                    const search = formData.get('search');
+                    const city = formData.get('city');
+                    const date = formData.get('date');
+                    const type = formData.get('type');
+                    const price = formData.get('price[]');
+                    const sort = formData.get('sort');
+                    if (search)
+                        url += '&search=' + search;
+                    if (city)
+                        url += '&city=' + city;
+                    if (date)
+                        url += '&date=' + date;
+                    if (type)
+                        url += '&type=' + type;
+                    if (price)
+                        url += '&price%5B%5D=' + price;
+                    if (sort)
+                        url += '&sort=' + sort;
+                    if (search)
+                        url += '&search=' + search;
+                    console.log("url: ", url);
 
                     $.ajax({
-                        url: '{{ route('index') }}?page=' + page,
+                        url: url,
                         type: 'GET',
                         success: function(data) {
-                            console.log("success success success success success success")
                             if (data) {
                                 $('#posts-container').append(data);
                                 loading = false;

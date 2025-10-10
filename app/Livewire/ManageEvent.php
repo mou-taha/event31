@@ -186,11 +186,10 @@ class ManageEvent extends Component
         }
     }
     
-
     public function store()
     {
         $this->validate([
-            'title' => 'required|unique:events,title|max:49',
+            'title' => 'required|max:49|unique:events,title,' . $this->eventId,
             'subtitle' => 'nullable|max:90',
             'link' => 'nullable|url',
             'content' => 'required|min:1',

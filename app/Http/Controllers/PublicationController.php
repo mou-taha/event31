@@ -39,117 +39,114 @@ class PublicationController extends Controller
         return view('publications.index', compact('cities', 'types', 'menus', 'items', 'selectedCity', 'selectedDate', 'selectedTypes', 'selectedPrices', 'sortBy', 'searchTerm'));
     }
     
-protected function loadItems(Request $request,$selectedCity, $selectedDate, $selectedTypes, $selectedPrices, $sortBy, $searchTerm, $selectedTypeId, $selectedSubtypeId)
+protected function loadItems(Request $request, $selectedCity, $selectedDate, $selectedTypes, $selectedPrices, $sortBy, $searchTerm, $selectedTypeId, $selectedSubtypeId)
 {
-    $items = collect();
-    $today = Carbon::today(); // Get today's date
-    
-    $physicalEventsQuery = Physical::with(['event.menu', 'event.type', 'event.subtype', 'event.prices'])
-        ->whereHas('event', function ($query) use ($searchTerm, $selectedTypeId, $selectedSubtypeId) {
-            $query->where('confirmed', true);
-            if ($searchTerm) {
-                $query->where('title', 'like', '%' . $searchTerm . '%');
-            }
-            if ($selectedTypeId) {
-                $query->where('type_id', $selectedTypeId);
-            }
-            if ($selectedSubtypeId) {
-                $query->where('subtype_id', $selectedSubtypeId);
-            }
-        })
-        // Add conditions for today <= dateend or today <= datestart if dateend is null
+    $today = Carbon::today();
+
+    // Base query conditions for both
+    $applyEventFilters = function ($query) use ($searchTerm, $selectedTypeId, $selectedSubtypeId) {
+        $query->where('confirmed', true);
+        if ($searchTerm) {
+            $query->where('title', 'like', '%' . $searchTerm . '%');
+        }
+        if ($selectedTypeId) {
+            $query->where('type_id', $selectedTypeId);
+        }
+        if ($selectedSubtypeId) {
+            $query->where('subtype_id', $selectedSubtypeId);
+        }
+    };
+
+    // PHYSICAL EVENTS
+    $physicalQuery = Physical::with(['event.menu', 'event.type', 'event.subtype', 'event.prices', 'city'])
+        ->whereHas('event', $applyEventFilters)
         ->where(function ($query) use ($today) {
-            $query->where(function ($subQuery) use ($today) {
-                $subQuery->whereDate('dateend', '>=', $today);
-            })->orWhere(function ($subQuery) use ($today) {
-                $subQuery->whereNull('dateend')
-                         ->whereDate('datestart', '>=', $today);
-            });
+            $query->whereDate('dateend', '>=', $today)
+                  ->orWhere(function ($q) use ($today) {
+                      $q->whereNull('dateend')->whereDate('datestart', '>=', $today);
+                  });
         });
 
-    $virtualEventsQuery = Virtual::with(['event.menu', 'event.type', 'event.subtype', 'event.prices'])
-        ->whereHas('event', function ($query) use ($searchTerm, $selectedTypeId, $selectedSubtypeId) {
-            $query->where('confirmed', true);
-            if ($searchTerm) {
-                $query->where('title', 'like', '%' . $searchTerm . '%');
-            }
-            if ($selectedTypeId) {
-                $query->where('type_id', $selectedTypeId);
-            }
-            if ($selectedSubtypeId) {
-                $query->where('subtype_id', $selectedSubtypeId);
-            }
-        })
-        // Add conditions for today <= dateend or today <= datestart if dateend is null
-        ->where(function ($query) use ($today) {
-            $query->where(function ($subQuery) use ($today) {
-                $subQuery->whereDate('dateend', '>=', $today);
-            })->orWhere(function ($subQuery) use ($today) {
-                $subQuery->whereNull('dateend')
-                         ->whereDate('datestart', '>=', $today);
-            });
-        });
+    // Apply city filter
+    if ($selectedCity) {
+        $physicalQuery->whereHas('city', fn($q) => $q->where('name', $selectedCity));
+    }
 
+    // Apply date filter
     if ($selectedDate) {
-        $physicalEventsQuery->where(function ($query) use ($selectedDate) {
-            $query->where(function ($subQuery) use ($selectedDate) {
-                $subQuery->whereDate('datestart', '<=', $selectedDate)
-                         ->whereDate('dateend', '>=', $selectedDate);
-            })
-            ->orWhere(function ($subQuery) use ($selectedDate) {
-                $subQuery->whereNull('dateend')
-                         ->whereDate('datestart', '=', $selectedDate);
-            });
-        });
-
-        $virtualEventsQuery->where(function ($query) use ($selectedDate) {
-            $query->where(function ($subQuery) use ($selectedDate) {
-                $subQuery->whereDate('datestart', '<=', $selectedDate)
-                         ->whereDate('dateend', '>=', $selectedDate);
-            })
-            ->orWhere(function ($subQuery) use ($selectedDate) {
-                $subQuery->whereNull('dateend')
-                         ->whereDate('datestart', '=', $selectedDate);
-            });
+        $physicalQuery->where(function ($query) use ($selectedDate) {
+            $query->whereBetween('datestart', [$selectedDate, $selectedDate])
+                  ->orWhereBetween('dateend', [$selectedDate, $selectedDate]);
         });
     }
 
-    $physicalEvents = $physicalEventsQuery->orderBy('datestart', 'asc')->paginate(5);
-    $virtualEvents = $virtualEventsQuery->orderBy('datestart', 'asc')->paginate(5);
-  
-    
-    foreach ($physicalEvents as $physical) {
-        if ($this->applyFilters($physical, $selectedCity, $selectedDate, $selectedPrices, $selectedTypes, 'physical')) {
+    // VIRTUAL EVENTS
+    $virtualQuery = Virtual::with(['event.menu', 'event.type', 'event.subtype', 'event.prices'])
+        ->whereHas('event', $applyEventFilters)
+        ->where(function ($query) use ($today) {
+            $query->whereDate('dateend', '>=', $today)
+                  ->orWhere(function ($q) use ($today) {
+                      $q->whereNull('dateend')->whereDate('datestart', '>=', $today);
+                  });
+        });
+
+    if ($selectedDate) {
+        $virtualQuery->where(function ($query) use ($selectedDate) {
+            $query->whereDate('datestart', '<=', $selectedDate)
+                  ->whereDate('dateend', '>=', $selectedDate)
+                  ->orWhere(function ($q) use ($selectedDate) {
+                      $q->whereNull('dateend')->whereDate('datestart', '=', $selectedDate);
+                  });
+        });
+    }
+
+    // Fetch and merge
+    $physicals = $physicalQuery->get();
+    $virtuals = $virtualQuery->get();
+
+    $items = collect();
+
+    foreach ($physicals as $physical) {
+        if ($this->priceFilterMatch($physical, $selectedPrices, 'physical', $selectedTypes)) {
             $items->push($this->transformItem($physical, 'physical'));
         }
     }
 
-    foreach ($virtualEvents as $virtual) {
-        if ($this->applyFilters($virtual, $selectedCity, $selectedDate, $selectedPrices, $selectedTypes, 'virtual')) {
+    foreach ($virtuals as $virtual) {
+        if ($this->priceFilterMatch($virtual, $selectedPrices, 'virtual', $selectedTypes)) {
             $items->push($this->transformItem($virtual, 'virtual'));
         }
     }
 
+    // Sort
     $items = $this->applySorting($items, $sortBy);
 
-    // return $items->values()->all();
-
-    // Paginate final merged collection manually
-    $page = request()->get('page',1);
+    // Paginate once
+    $page = $request->get('page', 1);
     $perPage = 10;
-    $total =  $physicalEvents->total() +  $virtualEvents->total();
 
-    $paginatedItems = new LengthAwarePaginator(
-        $items->forPage(1, $perPage),
-        $total,
+    return new LengthAwarePaginator(
+        $items->forPage($page, $perPage),
+        $items->count(),
         $perPage,
         $page,
-        ['path' => request()->url(), 'query' => request()->query()]
+        ['path' => $request->url(), 'query' => $request->query()]
+    );
+}
+protected function priceFilterMatch($event, $selectedPrices, $type, $selectedTypes)
+{
+    $typeMatches = empty($selectedTypes) || in_array($type, $selectedTypes);
+
+    $hasPrices = $event->event->prices->isNotEmpty();
+    $priceMatches = (
+        empty($selectedPrices)
+        || (in_array('gratuit', $selectedPrices) && !$hasPrices)
+        || (in_array('payant', $selectedPrices) && $hasPrices)
     );
 
-    // Optional: if you're using Laravel API resources or JSON
-    return $paginatedItems;
+    return $typeMatches && $priceMatches;
 }
+
     
     protected function applyFilters($event, $selectedCity, $selectedDate, $selectedPrices, $selectedTypes, $type)
     {

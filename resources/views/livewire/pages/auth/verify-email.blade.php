@@ -6,8 +6,7 @@ use Illuminate\Support\Facades\Session;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
-new #[Layout('layouts.guest')] class extends Component
-{
+new #[Layout('layouts.guest')] class extends Component {
     /**
      * Send an email verification notification to the user.
      */
@@ -37,10 +36,16 @@ new #[Layout('layouts.guest')] class extends Component
 
 <div>
     <div class="mb-4 text-sm text-gray-600">
-        {{ __('Merci pour votre inscription ! Avant de commencer, pourriez-vous vérifier votre adresse e-mail en cliquant sur le lien que nous venons de vous envoyer ? Si vous n\'avez pas reçu l\'e-mail, nous vous enverrons volontiers un autre.') }}
+        {{ __('Merci pour votre inscription !') }}
+    </div>
+    <div class="mb-4 text-sm text-gray-600">
+        {{ __('Veuiilez confirmer votre e-mail en cliquant sur le lien envoyé.') }}
     </div>
 
-    @if (session('status') == 'verification-link-sent')
+    <div class="mb-4 text-sm text-gray-600">
+        {{ __('Pas reçu?') }}
+    </div>
+    @if (session('status') == 'verification-link-se nt')
         <div class="mb-4 font-medium text-sm text-green-600">
             {{ __('Un nouveau lien de vérification a été envoyé à l\'adresse e-mail que vous avez fournie lors de l\'inscription.') }}
         </div>
@@ -48,10 +53,11 @@ new #[Layout('layouts.guest')] class extends Component
 
     <div class="mt-4 flex items-center justify-between">
         <x-primary-button wire:click="sendVerification">
-            {{ __('Renvoyer l\'email de vérification') }}
+            {{ __('Renvoyer l\'email') }}
         </x-primary-button>
 
-        <button wire:click="logout" type="submit" class="underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+        <button wire:click="logout" type="submit"
+            class="underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
             {{ __('Se déconnecter') }}
         </button>
     </div>

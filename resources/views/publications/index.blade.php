@@ -97,7 +97,7 @@
                                                         value="{{ old('search', $searchTerm) }}">
                                                 </div>
                                             </div>
-
+                                            <h1>{{ old('city', $selectedCity) }}</h1>
                                             <!-- City Selection using Alpine.js Combobox -->
                                             <div x-data="singleSelectCombobox('{{ old('city', $selectedCity) }}', {{ json_encode($cities) }})" class="relative mt-2">
                                                 <input id="cityCombobox" type="text" x-model="search"
@@ -521,39 +521,34 @@
                                     </button>
                                 </div>
                             </div>
-
                         </form>
                         <script>
-                            function singleSelectCombobox(initialSelectedCity, cities) {
+                            function singleSelectCombobox(initialCityName, cities) {
                                 return {
                                     open: false,
                                     search: '',
-                                    selectedCity: initialSelectedCity,
+                                    selectedCity: initialCityName || null,
                                     options: cities,
                                     filteredOptions: cities,
 
                                     init() {
-                                        this.search = this.getSelectedCityName(this.selectedCity);
-                                    },
-
-                                    filterOptions() {
-                                        if (this.search === '') {
-                                            this.filteredOptions = this.options;
-                                        } else {
-                                            this.filteredOptions = this.options.filter(option => option.name.toLowerCase().includes(this.search
-                                                .toLowerCase()));
+                                        if (this.selectedCity) {
+                                            // Set visible text to the selected city name
+                                            this.search = this.selectedCity;
                                         }
                                     },
 
-                                    selectOption(option) {
-                                        this.selectedCity = option.id;
-                                        this.search = option.name;
-                                        this.open = false;
+                                    filterOptions() {
+                                        const query = this.search.toLowerCase();
+                                        this.filteredOptions = this.options.filter(opt =>
+                                            opt.name.toLowerCase().includes(query)
+                                        );
                                     },
 
-                                    getSelectedCityName(cityId) {
-                                        const selectedCity = this.options.find(option => option.id == cityId);
-                                        return selectedCity ? selectedCity.name : '';
+                                    selectOption(option) {
+                                        this.selectedCity = option.name; // we store the name
+                                        this.search = option.name;
+                                        this.open = false;
                                     }
                                 };
                             }
@@ -783,6 +778,7 @@
                     const type = formData.get('type');
                     const price = formData.get('price[]');
                     const sort = formData.get('sort');
+
                     if (search)
                         url += '&search=' + search;
                     if (city)
@@ -795,8 +791,8 @@
                         url += '&price%5B%5D=' + price;
                     if (sort)
                         url += '&sort=' + sort;
-                    if (search)
-                        url += '&search=' + search;
+                    // if (search)
+                    //     url += '&search=' + search;
                     console.log("url: ", url);
 
                     $.ajax({

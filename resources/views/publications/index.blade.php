@@ -29,12 +29,13 @@
             <div class="hidden md:flex pb-3 pt-3 shadow-sm justify-center">
                 <ul class="flex items-center space-x-6">
                     <li class="relative">
-                        <a href="{{ route('index') }}"
+                    <a href="{{ route('index', ['city' => request('city')]) }}"
                             class="nav-link font-semibold {{ request()->routeIs('index') ? 'text-emerald-500' : 'text-gray-500' }} text-md relative transition ease-in-out duration-300 after:absolute after:bottom-0 after:left-0 after:w-0 after:h-px after:bg-gray-500 after:transition-all after:duration-300 hover:after:w-full">Accueil</a>
                     </li>
                     @foreach ($menus as $menu)
                         <li class="relative">
-                            <a href="{{ route('menus.index', ['id' => $menu->id]) }}" id="menu-{{ $menu->id }}"
+                            <a href="{{ route('menus.index', ['id' => $menu->id, 'city' => request('city')]) }}"
+                                id="menu-{{ $menu->id }}"
                                 class="nav-link font-semibold 
                           {{ Request::route('id') == $menu->id ? 'text-emerald-500 after:bg-emerald-500' : 'text-gray-500 after:bg-gray-500' }} 
                           text-md relative transition ease-in-out duration-300 after:absolute after:bottom-0 after:left-0 after:w-0 after:h-px after:transition-all after:duration-300 hover:after:w-full">
@@ -561,11 +562,8 @@
         <!-- Button to toggle the sidebar for mobile -->
         <div
             class="fixed top-[60px] z-20 bg-white flex flex-grow w-full items-center justify-between shadow-sm  md:hidden px-[2px]">
-
-
             <div class="items-center w-full h-10 mr-1 bg-white">
                 <div class="scrollable-tabs-container">
-
                     <ul>
                         <li>
                             <a href="{{ route('index') }}"
@@ -574,7 +572,7 @@
 
                         @foreach ($menus as $menu)
                             <li>
-                                <a href="{{ route('menus.index', ['id' => $menu->id]) }}"
+                            <a href="{{ route('menus.index', ['id' => $menu->id, 'city' => request('city')]) }}"
                                     class="{{ Request::route('id') == $menu->id ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-900' }}">{{ $menu->name }}</a>
                             </li>
                         @endforeach
